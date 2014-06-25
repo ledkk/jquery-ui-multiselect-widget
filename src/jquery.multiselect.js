@@ -41,7 +41,9 @@
       autoOpen: false,
       multiple: true,
       position: {},
-      appendTo: "body"
+      appendTo: "body",
+	links:[          
+             ]
     },
 
     _create: function() {
@@ -79,7 +81,20 @@
           .addClass('ui-helper-reset')
           .html(function() {
             if(o.header === true) {
-              return '<li><a class="ui-multiselect-all" href="#"><span class="ui-icon ui-icon-check"></span><span>' + o.checkAllText + '</span></a></li><li><a class="ui-multiselect-none" href="#"><span class="ui-icon ui-icon-closethick"></span><span>' + o.uncheckAllText + '</span></a></li>';
+            	//modify by zhengb for 自定义链接按钮
+            	var head = '<li><a class="ui-multiselect-all" href="#"><span class="ui-icon ui-icon-check"></span><span>' + o.checkAllText + '</span></a></li>'
+            			+'<li><a class="ui-multiselect-none" href="#"><span class="ui-icon ui-icon-closethick"></span><span>' + o.uncheckAllText + '</span></a></li>';
+            	var l = [];
+            	if(o.links && o.links.length > 0){
+            		var cl = o.links.map(function(e){
+            			var text = e.text;
+            			var className = e.className || "ui-multiselect-link";
+            			return '<li><a class="'+className+'" href="#"><span class="ui-icon ui-icon-links"></span><span>' + text + '</span></a></li>';
+            		});
+            		head += cl.join("");
+            	}
+            	
+              return head;
             } else if(typeof o.header === "string") {
               return '<li>' + o.header + '</li>';
             } else {
@@ -296,8 +311,12 @@
           self.close();
 
           // check all / uncheck all
-        } else {
-          self[$(this).hasClass('ui-multiselect-all') ? 'checkAll' : 'uncheckAll']();
+        } else if($(this).hasClass('ui-multiselect-all')){
+        	self.checkAll();
+        }else  if($(this).hasClass('ui-multiselect-none')) {
+          self.uncheckAll();
+        }else {
+        	self.filterCheck(this);
         }
 
         e.preventDefault();
@@ -482,13 +501,16 @@
       };
     },
 
-    _toggleChecked: function(flag, group) {
+    _toggleChecked: function(flag, group, filter) {
       var $inputs = (group && group.length) ?  group : this.inputs;
       var self = this;
+      
+      filter = filter || function(){return true;};
 
       // toggle state on inputs
-      $inputs.each(this._toggleState('checked', flag));
-
+      $inputs.filter(filter).each(this._toggleState('checked', flag));
+      $inputs.not(filter).each(this._toggleState('checked', !flag));
+      
       // give the first input focus
       $inputs.eq(0).focus();
 
@@ -496,7 +518,7 @@
       this.update();
 
       // gather an array of the values that actually changed
-      var values = $inputs.map(function() {
+      var values = $inputs.filter(filter).map(function() {
         return this.value;
       }).get();
 
@@ -632,6 +654,20 @@
     uncheckAll: function() {
       this._toggleChecked(false);
       this._trigger('uncheckAll');
+    },
+    
+    filterCheck: function(link){
+    	//找到链接的text 
+    	var text = $(link).find("span").text();
+    	var match = this.options.links.filter(function(e){
+    		return e.text == text;
+    	});
+    	this._toggleChecked(true,null,match[0].filter);
+    	this._trigger('linkClick');
+    },
+    
+    filter:function(filter){
+    	this._toggleChecked(true,null,filter);
     },
 
     getChecked: function() {
